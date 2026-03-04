@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview as ComposePreview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -24,6 +25,7 @@ import androidx.core.content.ContextCompat
 import com.example.validcash.analyzer.BillAnalyzer
 import com.example.validcash.model.BanknoteData
 import com.example.validcash.ui.theme.ValidCashTheme
+import com.example.validcash.validator.BanknoteValidator
 import java.util.concurrent.Executors
 
 @Composable
@@ -86,6 +88,8 @@ fun CameraScreenContent(
     banknoteData: BanknoteData,
     cameraPreview: @Composable () -> Unit
 ) {
+    val isGenuine = BanknoteValidator.isGenuine(banknoteData)
+    
     Box(modifier = modifier.fillMaxSize()) {
         cameraPreview()
 
@@ -95,7 +99,10 @@ fun CameraScreenContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .background(Color.Black.copy(alpha = 0.7f))
+                    .background(
+                        if (isGenuine) Color.Black.copy(alpha = 0.7f) 
+                        else Color.Red.copy(alpha = 0.8f)
+                    )
                     .padding(24.dp)
             ) {
                 Column(
@@ -103,25 +110,31 @@ fun CameraScreenContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Billete Detectado",
-                        color = Color.Green,
-                        style = MaterialTheme.typography.titleLarge
+                        text = if (isGenuine) "BILLETE VALIDO" else "¡BILLETE NO VÁLIDO!",
+                        color = if (isGenuine) Color.Green else Color.White,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
                     )
-                    Text(
-                        text = "Serie: ${banknoteData.serie}",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = "Valor: ${banknoteData.valor} BOB",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = "Nro Serie: ${banknoteData.numeroSerie}",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    
+                    if (!isGenuine) {
+                        Text(
+                            text = "Rango de Serie B no permitido",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column {
+                            Text("Serie: ${banknoteData.serie}", color = Color.White)
+                            Text("Valor: ${banknoteData.valor} BOB", color = Color.White)
+                        }
+                        Column {
+                            Text("Nro: ${banknoteData.numeroSerie}", color = Color.White)
+                        }
+                    }
                 }
             }
         }
@@ -130,24 +143,30 @@ fun CameraScreenContent(
 
 @ComposePreview(showBackground = true)
 @Composable
-fun CameraScreenPreview() {
+fun CameraScreenPreviewValid() {
+    ValidCashTheme {
+        CameraScreenContent(
+            banknoteData = BanknoteData(
+                serie = "A",
+                valor = "100",
+                numeroSerie = "12345678"
+            ),
+            cameraPreview = { Box(Modifier.fillMaxSize().background(Color.Gray)) }
+        )
+    }
+}
+
+@ComposePreview(showBackground = true)
+@Composable
+fun CameraScreenPreviewInvalid() {
     ValidCashTheme {
         CameraScreenContent(
             banknoteData = BanknoteData(
                 serie = "B",
-                valor = "100",
-                numeroSerie = "123456789"
+                valor = "10",
+                numeroSerie = "67250500" // Dentro del rango inválido
             ),
-            cameraPreview = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.DarkGray),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Vista previa de cámara", color = Color.White)
-                }
-            }
+            cameraPreview = { Box(Modifier.fillMaxSize().background(Color.Gray)) }
         )
     }
 }
