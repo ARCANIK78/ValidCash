@@ -14,6 +14,7 @@ val AdlamDisplay = FontFamily(
     Font(R.font.adlam_display_regular, FontWeight.Bold)
 )
 
+// Set of Material typography styles to start with
 val Typography = Typography(
     bodyLarge = TextStyle(
         fontFamily = AdlamDisplay,
@@ -23,3 +24,4 @@ val Typography = Typography(
         letterSpacing = 0.5.sp
     )
 )
+

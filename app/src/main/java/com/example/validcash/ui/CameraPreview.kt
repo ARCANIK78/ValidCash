@@ -1,6 +1,10 @@
 package com.example.validcash.ui
 
+import android.graphics.ImageFormat
 import android.util.Log
+import android.util.Size
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -9,7 +13,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
@@ -19,7 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview as ComposePreview
 import androidx.compose.ui.unit.dp
@@ -31,19 +35,63 @@ import com.example.validcash.ui.theme.ValidCashTheme
 import com.example.validcash.validator.BanknoteValidator
 import java.util.concurrent.Executors
 
+// Resolución máxima limitada a 1080p para mejor rendimiento
+private val MAX_RESOLUTION = Size(1920, 1080)
+
+private fun getOptimalResolution(context: android.content.Context): Size {
+    return try {
+        val cameraManager = context.getSystemService(android.content.Context.CAMERA_SERVICE) as CameraManager
+
+        val cameraId = cameraManager.cameraIdList.firstOrNull { id ->
+            val characteristics = cameraManager.getCameraCharacteristics(id)
+            characteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
+        } ?: return MAX_RESOLUTION
+        
+        val characteristics = cameraManager.getCameraCharacteristics(cameraId)
+        val streamConfigMap = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+        
+        val outputSizes = streamConfigMap?.getOutputSizes(ImageFormat.JPEG)
+        
+        if (outputSizes != null && outputSizes.isNotEmpty()) {
+            // Filtrar tamaños mayores a 1080p y seleccionar el más cercano
+            val filteredSizes = outputSizes.filter { 
+                it.width <= MAX_RESOLUTION.width && it.height <= MAX_RESOLUTION.height 
+            }
+            
+            val selectedSize = if (filteredSizes.isNotEmpty()) {
+                // Seleccionar el más grande pero dentro del límite
+                filteredSizes.sortedByDescending { it.width * it.height }.first()
+            } else {
+                // Si ninguno es menor a 1080p, buscar el más cercano por abajo
+                outputSizes.sortedByDescending { it.width * it.height }.last()
+            }
+            
+            Log.d("CameraPreview", "Resolución seleccionada: ${selectedSize.width}x${selectedSize.height}")
+            selectedSize
+        } else {
+            MAX_RESOLUTION
+        }
+    } catch (e: Exception) {
+        Log.e("CameraPreview", "Error al obtener resolución: ${e.message}")
+        MAX_RESOLUTION
+    }
+}
+
 @Composable
 fun CameraScreen(
     modifier: Modifier = Modifier,
     banknoteData: BanknoteData,
-    onTextDetected: (String) -> Unit
+    onTextDetected: (String, android.content.Context) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
-    1
+
     var flashEnabled by remember { mutableStateOf(false) }
     var cameraSelector by remember { mutableStateOf(CameraSelector.DEFAULT_BACK_CAMERA) }
     var camera: Camera? by remember { mutableStateOf(null) }
+
+    val optimalResolution = remember { getOptimalResolution(context) }
 
     CameraScreenContent(
         modifier = modifier,
@@ -69,9 +117,11 @@ fun CameraScreen(
 
                         val imageAnalysis = ImageAnalysis.Builder()
                             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .setTargetResolution(optimalResolution)
+                            .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                             .build()
                             .also {
-                                it.setAnalyzer(cameraExecutor, BillAnalyzer(onTextDetected))
+                                it.setAnalyzer(cameraExecutor, BillAnalyzer { text -> onTextDetected(text, context) })
                             }
 
                         try {
@@ -106,7 +156,6 @@ fun CameraScreenContent(
     Box(modifier = modifier.fillMaxSize()) {
         cameraPreview()
 
-        // Botones de control
         Column(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -115,7 +164,7 @@ fun CameraScreenContent(
         ) {
             IconButton(
                 onClick = onFlashClick,
-                modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
             ) {
                 Icon(
                     imageVector = if (flashEnabled) Icons.Default.FlashOn else Icons.Default.FlashOff,
@@ -125,7 +174,6 @@ fun CameraScreenContent(
             }
         }
 
-        // Overlay que muestra los datos solo cuando están completos
         if (banknoteData.isValid) {
             Box(
                 modifier = Modifier
@@ -187,3 +235,4 @@ fun CameraScreenPreviewValid() {
         )
     }
 }
+

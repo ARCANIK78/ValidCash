@@ -1,3 +1,4 @@
+
 package com.example.validcash
 
 import android.Manifest
@@ -14,7 +15,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -28,14 +28,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.validcash.ui.CameraScreen
 import com.example.validcash.ui.theme.AdlamDisplay
 import com.example.validcash.ui.theme.ValidCashTheme
 
 class MainActivity : ComponentActivity() {
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        clearCache()
+        
         enableEdgeToEdge()
         setContent {
             ValidCashTheme {
@@ -47,6 +55,32 @@ class MainActivity : ComponentActivity() {
                     MainContent()
                 }
             }
+        }
+    }
+    
+    private fun clearCache() {
+        try {
+            val cacheDir = cacheDir
+            deleteDir(cacheDir)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
+    private fun deleteDir(dir: java.io.File?): Boolean {
+        if (dir != null && dir.isDirectory) {
+            val children = dir.list() ?: return false
+            for (i in children.indices) {
+                val success = deleteDir(java.io.File(dir, children[i]))
+                if (!success) {
+                    return false
+                }
+            }
+            return dir.delete()
+        } else if (dir != null && dir.isFile) {
+            return dir.delete()
+        } else {
+            return false
         }
     }
 }
@@ -132,9 +166,11 @@ fun SplashScreen(onDismiss: () -> Unit) {
 }
 
 @Composable
-fun MainContent() {
-    val mainViewModel: MainViewModel = viewModel()
+fun MainContent(
+    mainViewModel: MainViewModel = viewModel()
+) {
     val context = LocalContext.current
+    
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -156,12 +192,16 @@ fun MainContent() {
         }
     }
 
+    val banknoteData = remember(mainViewModel.banknoteData) {
+        mainViewModel.banknoteData
+    }
+
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         if (hasCameraPermission) {
             CameraScreen(
                 modifier = Modifier.padding(innerPadding),
-                banknoteData = mainViewModel.banknoteData,
-                onTextDetected = { mainViewModel.onTextDetected(it) }
+                banknoteData = banknoteData,
+                onTextDetected = { text, ctx -> mainViewModel.onTextDetected(text, ctx) }
             )
         } else {
             Box(
@@ -173,3 +213,4 @@ fun MainContent() {
         }
     }
 }
+
