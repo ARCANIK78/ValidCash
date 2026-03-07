@@ -1,41 +1,30 @@
 
 package com.example.validcash
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.validcash.ui.CameraScreen
+import com.example.validcash.ui.AboutScreen
+import com.example.validcash.ui.HomeContent
+import com.example.validcash.ui.SplashScreen
+import com.example.validcash.ui.components.CapiScanLogo
 import com.example.validcash.ui.theme.AdlamDisplay
 import com.example.validcash.ui.theme.ValidCashTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     
@@ -85,132 +74,126 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable
-fun SplashScreen(onDismiss: () -> Unit) {
-    val isDarkTheme = isSystemInDarkTheme()
-    
-    val backgroundColor = if (isDarkTheme) Color(0xFF44F2F2) else Color(0xFF007A7A)
-    val textColor = if (isDarkTheme) Color(0xFF121212) else Color(0xFFFFFFFF)
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(backgroundColor)
-            .clickable { onDismiss() },
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "BIENVENIDOS A MI APP",
-                fontSize = 33.sp,
-                fontFamily = AdlamDisplay,
-                fontWeight = FontWeight.Bold,
-                color = textColor,
-                textAlign = TextAlign.Center
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "CAPI",
-                    fontSize = 45.sp,
-                    fontFamily = AdlamDisplay,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier
-                        .background(
-                            Color(0xFF007FFF), 
-                            shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
-                        )
-                        .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
-                )
-                Text(
-                    text = "SCAN",
-                    fontSize = 45.sp,
-                    fontFamily = AdlamDisplay,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier
-                        .background(
-                            Color(0xFF301934),
-                            shape = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
-                        )
-                        .padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp)
-                )
-            }
-
-            Image(
-                painter = painterResource(id = R.drawable.capibara),
-                contentDescription = "Logo de la aplicación",
-                modifier = Modifier.size(450.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Presione la pantalla para continuar",
-                fontSize = 22.sp,
-                fontFamily = AdlamDisplay,
-                fontWeight = FontWeight.Normal,
-                color = textColor,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
+enum class Screen {
+    HOME, ABOUT
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainContent(
     mainViewModel: MainViewModel = viewModel()
 ) {
-    val context = LocalContext.current
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    var currentScreen by remember { mutableStateOf(Screen.HOME) }
     
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { granted ->
-            hasCameraPermission = granted
-        }
-    )
+    val isDarkTheme = isSystemInDarkTheme()
+    val navBackgroundColor = if (isDarkTheme) Color(0xFF44F2F2) else Color(0xFF007A7A)
+    val navTextColor = if (isDarkTheme) Color(0xFF121212) else Color(0xFFFFFFFF)
 
-    LaunchedEffect(Unit) {
-        if (!hasCameraPermission) {
-            launcher.launch(Manifest.permission.CAMERA)
-        }
-    }
-
-    val banknoteData = remember(mainViewModel.banknoteData) {
-        mainViewModel.banknoteData
-    }
-
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        if (hasCameraPermission) {
-            CameraScreen(
-                modifier = Modifier.padding(innerPadding),
-                banknoteData = banknoteData,
-                onTextDetected = { text, ctx -> mainViewModel.onTextDetected(text, ctx) }
-            )
-        } else {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = navBackgroundColor
             ) {
-                Text("Se necesita permiso de cámara")
+                Spacer(modifier = Modifier.height(16.dp))
+                NavigationDrawerItem(
+                    icon = { 
+                        Icon(
+                            Icons.Default.Home, 
+                            contentDescription = null
+                        ) 
+                    },
+                    label = { 
+                        Text(
+                            "Home", 
+                            fontFamily = AdlamDisplay
+                        ) 
+                    },
+                    selected = currentScreen == Screen.HOME,
+                    onClick = {
+                        currentScreen = Screen.HOME
+                        scope.launch { drawerState.close() }
+                    },
+                    colors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = navTextColor,
+                        unselectedContainerColor = Color.Transparent,
+                        selectedIconColor = navBackgroundColor,
+                        unselectedIconColor = navTextColor,
+                        selectedTextColor = navBackgroundColor,
+                        unselectedTextColor = navTextColor
+                    ),
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
+                    icon = { 
+                        Icon(
+                            Icons.Default.Info, 
+                            contentDescription = null
+                        ) 
+                    },
+                    label = { 
+                        Text(
+                            "About", 
+                            fontFamily = AdlamDisplay
+                        ) 
+                    },
+                    selected = currentScreen == Screen.ABOUT,
+                    onClick = {
+                        currentScreen = Screen.ABOUT
+                        scope.launch { drawerState.close() }
+                    },
+                    colors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = navTextColor,
+                        unselectedContainerColor = Color.Transparent,
+                        selectedIconColor = navBackgroundColor,
+                        unselectedIconColor = navTextColor,
+                        selectedTextColor = navBackgroundColor,
+                        unselectedTextColor = navTextColor
+                    ),
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { 
+                        if (currentScreen == Screen.HOME) {
+                            CapiScanLogo(fontSize = 22.sp)
+                        } else {
+                            Text(
+                                "Acerca de",
+                                fontFamily = AdlamDisplay,
+                                color = navTextColor
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(
+                                Icons.Default.Menu, 
+                                contentDescription = "Menu",
+                                tint = navTextColor
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = navBackgroundColor,
+                        titleContentColor = navTextColor,
+                        navigationIconContentColor = navTextColor
+                    )
+                )
+            }
+        ) { innerPadding ->
+            Box(modifier = Modifier.padding(innerPadding)) {
+                when (currentScreen) {
+                    Screen.HOME -> HomeContent(mainViewModel)
+                    Screen.ABOUT -> AboutScreen()
+                }
             }
         }
     }
 }
-

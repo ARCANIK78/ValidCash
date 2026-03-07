@@ -41,6 +41,7 @@ class BillAnalyzer(
         }
     }
     
+    @ExperimentalGetImage
     private fun processImage(imageProxy: ImageProxy) {
         try {
             val mediaImage = imageProxy.image
@@ -71,4 +72,3 @@ class BillAnalyzer(
         }
     }
 }
-
