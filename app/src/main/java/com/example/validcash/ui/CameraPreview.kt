@@ -87,11 +87,22 @@ fun CameraScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
 
+    // Referencia al analyzer para liberar recursos después
+    val billAnalyzer = remember { BillAnalyzer { text -> onTextDetected(text, context) } }
+
     var flashEnabled by remember { mutableStateOf(false) }
     var cameraSelector by remember { mutableStateOf(CameraSelector.DEFAULT_BACK_CAMERA) }
     var camera: Camera? by remember { mutableStateOf(null) }
 
     val optimalResolution = remember { getOptimalResolution(context) }
+
+    // Liberar recursos cuando el composable se destruya
+    DisposableEffect(Unit) {
+        onDispose {
+            billAnalyzer.close()
+            cameraExecutor.shutdown()
+        }
+    }
 
     CameraScreenContent(
         modifier = modifier,
@@ -121,7 +132,7 @@ fun CameraScreen(
                             .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                             .build()
                             .also {
-                                it.setAnalyzer(cameraExecutor, BillAnalyzer { text -> onTextDetected(text, context) })
+                                it.setAnalyzer(cameraExecutor, billAnalyzer)
                             }
 
                         try {

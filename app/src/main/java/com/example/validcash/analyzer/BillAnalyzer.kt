@@ -19,6 +19,11 @@ class BillAnalyzer(
     
     private var lastProcessTime = 0L
 
+    // Método para liberar recursos cuando se destruya el analyzer
+    fun close() {
+        recognizer.close()
+    }
+
     @ExperimentalGetImage
     override fun analyze(imageProxy: ImageProxy) {
         val currentTime = System.currentTimeMillis()
