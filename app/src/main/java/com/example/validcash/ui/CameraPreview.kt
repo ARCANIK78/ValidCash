@@ -32,6 +32,7 @@ import androidx.core.content.ContextCompat
 import com.example.validcash.analyzer.BillAnalyzer
 import com.example.validcash.model.BanknoteData
 import com.example.validcash.ui.theme.ValidCashTheme
+import com.example.validcash.utils.SoundManager
 import com.example.validcash.validator.BanknoteValidator
 import java.util.concurrent.Executors
 
@@ -162,7 +163,46 @@ fun CameraScreenContent(
     onFlashClick: () -> Unit = {},
     cameraPreview: @Composable () -> Unit
 ) {
-    val isGenuine = BanknoteValidator.isGenuine(banknoteData)
+    val context = LocalContext.current
+    
+    // SoundManager para reproducir sonidos
+    val soundManager = remember { SoundManager(context) }
+    
+    // Estado para controlar que el sonido solo se reproduzca una vez por detección
+    var lastPlayedBanknote by remember { mutableStateOf("") }
+    
+    // Validar el billete
+    val isGenuine = if (banknoteData.isValidatable) {
+        BanknoteValidator.isGenuine(banknoteData)
+    } else {
+        true // Para billete no validable (100/200), mostrar como válido por defecto
+    }
+    
+    // Reproducir sonido cuando cambia el billete detectado
+    LaunchedEffect(banknoteData.numeroSerie, banknoteData.valor) {
+        if (banknoteData.isValid && banknoteData.numeroSerie != lastPlayedBanknote) {
+            lastPlayedBanknote = banknoteData.numeroSerie
+            
+            if (banknoteData.isValidatable) {
+                // Billetes con validación (10, 20, 50)
+                if (BanknoteValidator.isGenuine(banknoteData)) {
+                    soundManager.playSuccessSound()
+                } else {
+                    soundManager.playErrorSound()
+                }
+            } else {
+                // Billetes sin validación disponible (100, 200) - reproducir sonido de éxito
+                soundManager.playSuccessSound()
+            }
+        }
+    }
+    
+    // Liberar recursos del SoundManager
+    DisposableEffect(Unit) {
+        onDispose {
+            soundManager.release()
+        }
+    }
     
     Box(modifier = modifier.fillMaxSize()) {
         cameraPreview()
@@ -191,8 +231,11 @@ fun CameraScreenContent(
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
                     .background(
-                        if (isGenuine) Color.Black.copy(alpha = 0.7f) 
-                        else Color.Red.copy(alpha = 0.8f)
+                        when {
+                            !banknoteData.isValidatable -> Color.Blue.copy(alpha = 0.7f) // Azul para 100/200
+                            isGenuine -> Color.Black.copy(alpha = 0.7f)
+                            else -> Color.Red.copy(alpha = 0.8f)
+                        }
                     )
                     .padding(24.dp)
             ) {
@@ -201,13 +244,29 @@ fun CameraScreenContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = if (isGenuine) "BILLETE VALIDO" else "¡BILLETE NO VÁLIDO!",
-                        color = if (isGenuine) Color.Green else Color.White,
+                        text = when {
+                            !banknoteData.isValidatable -> "BILLETE SIN REPORTE"
+                            isGenuine -> "BILLETE VALIDO"
+                            else -> "¡BILLETE NO VÁLIDO!"
+                        },
+                        color = when {
+                            !banknoteData.isValidatable -> Color.Cyan
+                            isGenuine -> Color.Green
+                            else -> Color.White
+                        },
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
                     
-                    if (!isGenuine) {
+                    if (!banknoteData.isValidatable) {
+                        Text(
+                            text = "Billete de Bs${banknoteData.valor} en circulación normal",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    
+                    if (banknoteData.isValidatable && !isGenuine) {
                         Text(
                             text = "Rango de Serie B no permitido",
                             color = Color.White,
