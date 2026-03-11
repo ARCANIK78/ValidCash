@@ -10,6 +10,7 @@ class SoundManager(private val context: Context) {
     private var successPlayer: MediaPlayer? = null
     private var errorPlayer: MediaPlayer? = null
     private var soundScope: CoroutineScope? = null
+    private lateinit var preferencesManager: PreferencesManager
     
     // Jobs para controlar la reproducción actual
     private var currentSoundJob: Job? = null
@@ -21,6 +22,18 @@ class SoundManager(private val context: Context) {
     init {
         soundScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
         initPlayers()
+    }
+    
+    fun initPreferences(prefs: PreferencesManager) {
+        preferencesManager = prefs
+    }
+    
+    private fun isMuted(): Boolean {
+        return if (::preferencesManager.isInitialized) {
+            !preferencesManager.isSoundEnabled
+        } else {
+            false // Default: sound on if preferences not initialized
+        }
     }
     
     private fun initPlayers() {
@@ -41,6 +54,9 @@ class SoundManager(private val context: Context) {
      * Solo reproduce si ha pasado suficiente tiempo desde la última reproducción
      */
     fun playSuccessSound() {
+        // Check if muted
+        if (isMuted()) return
+        
         val currentTime = System.currentTimeMillis()
         
         // Evitar reproducir el mismo sonido en menos de 2 segundos
@@ -72,6 +88,9 @@ class SoundManager(private val context: Context) {
      * Solo reproduce si ha pasado suficiente tiempo desde la última reproducción
      */
     fun playErrorSound() {
+        // Check if muted
+        if (isMuted()) return
+        
         val currentTime = System.currentTimeMillis()
         
         // Evitar reproducir el mismo sonido en menos de 2 segundos

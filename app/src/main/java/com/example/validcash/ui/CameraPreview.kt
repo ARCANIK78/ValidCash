@@ -82,6 +82,7 @@ private fun getOptimalResolution(context: android.content.Context): Size {
 fun CameraScreen(
     modifier: Modifier = Modifier,
     banknoteData: BanknoteData,
+    isSoundEnabled: Boolean = true,
     onTextDetected: (String, android.content.Context) -> Unit
 ) {
     val context = LocalContext.current
@@ -108,8 +109,9 @@ fun CameraScreen(
     CameraScreenContent(
         modifier = modifier,
         banknoteData = banknoteData,
+        isSoundEnabled = isSoundEnabled,
         flashEnabled = flashEnabled,
-        onFlashClick = { 
+        onFlashClick = {
             flashEnabled = !flashEnabled
             camera?.cameraControl?.enableTorch(flashEnabled)
         },
@@ -159,14 +161,17 @@ fun CameraScreen(
 fun CameraScreenContent(
     modifier: Modifier = Modifier,
     banknoteData: BanknoteData,
+    isSoundEnabled: Boolean = true,
     flashEnabled: Boolean = false,
     onFlashClick: () -> Unit = {},
     cameraPreview: @Composable () -> Unit
 ) {
     val context = LocalContext.current
     
-    // SoundManager para reproducir sonidos
-    val soundManager = remember { SoundManager(context) }
+    // SoundManager para reproducir sonidos - solo se usa si el sonido está habilitado
+    val soundManager = remember(isSoundEnabled) { 
+        if (isSoundEnabled) SoundManager(context) else null
+    }
     
     // Estado para controlar que el sonido solo se reproduzca una vez por detección
     var lastPlayedBanknote by remember { mutableStateOf("") }
@@ -180,7 +185,8 @@ fun CameraScreenContent(
     
     // Reproducir sonido cuando cambia el billete detectado
     LaunchedEffect(banknoteData.numeroSerie, banknoteData.valor) {
-        if (banknoteData.isValid && banknoteData.numeroSerie != lastPlayedBanknote) {
+        // Solo reproducir sonido si está habilitado
+        if (isSoundEnabled && soundManager != null && banknoteData.isValid && banknoteData.numeroSerie != lastPlayedBanknote) {
             lastPlayedBanknote = banknoteData.numeroSerie
             
             if (banknoteData.isValidatable) {
@@ -200,7 +206,7 @@ fun CameraScreenContent(
     // Liberar recursos del SoundManager
     DisposableEffect(Unit) {
         onDispose {
-            soundManager.release()
+            soundManager?.release()
         }
     }
     

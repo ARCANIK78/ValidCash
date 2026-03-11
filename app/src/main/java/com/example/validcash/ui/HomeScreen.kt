@@ -16,7 +16,10 @@ import androidx.core.content.ContextCompat
 import com.example.validcash.MainViewModel
 
 @Composable
-fun HomeContent(mainViewModel: MainViewModel) {
+fun HomeContent(
+    mainViewModel: MainViewModel,
+    isSoundEnabled: Boolean = true
+) {
     val context = LocalContext.current
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -47,6 +50,7 @@ fun HomeContent(mainViewModel: MainViewModel) {
         CameraScreen(
             modifier = Modifier.fillMaxSize(),
             banknoteData = banknoteData,
+            isSoundEnabled = isSoundEnabled,
             onTextDetected = { text, ctx -> mainViewModel.onTextDetected(text, ctx) }
         )
     } else {

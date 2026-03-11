@@ -4,6 +4,8 @@ APK="app/build/outputs/apk/debug/Capi Scan.apk"
 
 clear
 
+#debug ./gradlew assembleRelease
+
 ./gradlew clean && ./gradlew assembleDebug
 
 mv "app/build/outputs/apk/debug/app-debug.apk" "$APK"
